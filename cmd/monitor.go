@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/sunba23/notifly/internal/scraper"
+	"github.com/sunba23/notifly/internal/scraper/types"
 	// "github.com/sunba23/notifly/internal/consumer"
 	// "github.com/sunba23/notifly/internal/notifier"
 )
@@ -15,8 +16,9 @@ var (
 	toAirport   string
 	dateFrom    string
 	dateTo      string
-	notifyType  string
+	isReturn    bool
 	adults      int
+	notifyType  string
 )
 
 var monitorCmd = &cobra.Command{
@@ -30,7 +32,8 @@ func init() {
 	monitorCmd.Flags().StringVar(&toAirport, "to", "", "Destination airport (e.g., MRS)")
 	monitorCmd.Flags().StringVar(&dateFrom, "date-from", "", "Start date (YYYY-MM-DD)")
 	monitorCmd.Flags().StringVar(&dateTo, "date-to", "", "End date (YYYY-MM-DD)")
-	monitorCmd.Flags().StringVar(&notifyType, "notify", "file", "Notification method (email, file)")
+	monitorCmd.Flags().StringVar(&notifyType, "notify", "file", "Notification method (email, file) (default: file)")
+	monitorCmd.Flags().BoolVar(&isReturn, "return", true, "Is return (default: true)")
 	monitorCmd.Flags().IntVar(&adults, "adults", 1, "Number of adults (e.g., 2)")
 
 	monitorCmd.MarkFlagRequired("from")
@@ -41,23 +44,24 @@ func init() {
 	rootCmd.AddCommand(monitorCmd)
 }
 
-func parseArguments() (scraper.SearchCriteria, error) {
+func parseArguments() (types.SearchCriteria, error) {
 	dateFromParsed, err := time.Parse("2006-01-02", dateFrom)
 	if err != nil {
-		return scraper.SearchCriteria{}, fmt.Errorf("could not parse \"%v\" to format YYYY-MM-DD: %w", dateFrom, err)
+		return types.SearchCriteria{}, fmt.Errorf("could not parse \"%v\" to format YYYY-MM-DD: %w", dateFrom, err)
 	}
 
 	dateToParsed, err := time.Parse("2006-01-02", dateTo)
-  dateToParsed = dateToParsed.Add(24 * time.Hour - time.Nanosecond)
+	dateToParsed = dateToParsed.Add(24*time.Hour - time.Nanosecond)
 	if err != nil {
-		return scraper.SearchCriteria{}, fmt.Errorf("could not parse \"%v\" to format YYYY-MM-DD: %w", dateTo, err)
+		return types.SearchCriteria{}, fmt.Errorf("could not parse \"%v\" to format YYYY-MM-DD: %w", dateTo, err)
 	}
 
-	config := scraper.SearchCriteria{
+	config := types.SearchCriteria{
 		FromAirport: fromAirport,
 		ToAirport:   toAirport,
 		DateFrom:    dateFromParsed,
 		DateTo:      dateToParsed,
+		IsReturn:    isReturn,
 		Adults:      adults,
 	}
 
@@ -65,13 +69,13 @@ func parseArguments() (scraper.SearchCriteria, error) {
 }
 
 func run(cmd *cobra.Command, args []string) {
-  //TODO: run scraper (fetch, parse, publish), consumer (subscribe, process, saveDb) and notifier (readDb, notify) goroutines
+	//TODO: run scraper (fetch, parse, publish), consumer (subscribe, process, saveDb) and notifier (readDb, notify) goroutines
 
-	scraperConfig, err := parseArguments()
+	scraperCriteria, err := parseArguments()
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-	scraper.RunScraper(scraperConfig)
+	scraper.RunScrapers(scraperCriteria)
 }

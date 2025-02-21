@@ -1,8 +1,6 @@
-package scraper
+package types
 
-import (
-	"time"
-)
+import "time"
 
 type SearchCriteria struct {
 	FromAirport string
@@ -11,12 +9,6 @@ type SearchCriteria struct {
 	DateTo      time.Time
 	Adults      int
 	IsReturn    bool
-}
-
-type Vendor interface {
-	GenerateURLs(criteria SearchCriteria) []string
-
-	Parse(content string) ([]Flight, error)
 }
 
 type Flight struct {
