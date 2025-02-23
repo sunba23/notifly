@@ -7,6 +7,8 @@ type SearchCriteria struct {
 	ToAirport   string
 	DateFrom    time.Time
 	DateTo      time.Time
+	MinDays     int
+	MaxDays     int
 	Adults      int
 	IsReturn    bool
 }
@@ -18,6 +20,5 @@ type Flight struct {
 	DepartureTime time.Time
 	ReturnTime    *time.Time
 	Price         float64
-	Currency      string
 	URL           string
 }

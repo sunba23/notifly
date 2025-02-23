@@ -1,3 +1,3 @@
-package scraper
+package fetcher
 
 type publisher struct{}

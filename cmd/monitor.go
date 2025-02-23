@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/sunba23/notifly/internal/scraper"
-	"github.com/sunba23/notifly/internal/scraper/types"
+	"github.com/sunba23/notifly/internal/fetcher"
+	"github.com/sunba23/notifly/internal/fetcher/types"
 	// "github.com/sunba23/notifly/internal/consumer"
 	// "github.com/sunba23/notifly/internal/notifier"
 )
@@ -18,7 +18,10 @@ var (
 	dateTo      string
 	isReturn    bool
 	adults      int
-	notifyType  string
+	email        string
+	notifyPrice int
+	minDays     int
+	maxDays     int
 )
 
 var monitorCmd = &cobra.Command{
@@ -29,17 +32,25 @@ var monitorCmd = &cobra.Command{
 
 func init() {
 	monitorCmd.Flags().StringVar(&fromAirport, "from", "", "Origin airport (e.g., WRO)")
-	monitorCmd.Flags().StringVar(&toAirport, "to", "", "Destination airport (e.g., MRS)")
-	monitorCmd.Flags().StringVar(&dateFrom, "date-from", "", "Start date (YYYY-MM-DD)")
-	monitorCmd.Flags().StringVar(&dateTo, "date-to", "", "End date (YYYY-MM-DD)")
-	monitorCmd.Flags().StringVar(&notifyType, "notify", "file", "Notification method (email, file) (default: file)")
-	monitorCmd.Flags().BoolVar(&isReturn, "return", true, "Is return (default: true)")
+	monitorCmd.Flags().StringVar(&toAirport, "to", "", "Destination airport (e.g., STN)")
+	monitorCmd.Flags().StringVar(&dateFrom, "date-from", "", "Earliest date (YYYY-MM-DD)")
+	monitorCmd.Flags().StringVar(&dateTo, "date-to", "", "Latest date (YYYY-MM-DD)")
 	monitorCmd.Flags().IntVar(&adults, "adults", 1, "Number of adults (e.g., 2)")
+
+	monitorCmd.Flags().BoolVar(&isReturn, "return", true, "Is return (default: true)")
+	monitorCmd.Flags().IntVar(&minDays, "min-days", 2, "Min. amount of days")
+	monitorCmd.Flags().IntVar(&maxDays, "max-days", 7, "Max. amount of days")
+
+	monitorCmd.Flags().IntVar(&notifyPrice, "noti-price", 0, "Price, below which you will get notified")
+	monitorCmd.Flags().StringVar(&email, "email", "", "email to send notifications to")
 
 	monitorCmd.MarkFlagRequired("from")
 	monitorCmd.MarkFlagRequired("to")
 	monitorCmd.MarkFlagRequired("date-from")
 	monitorCmd.MarkFlagRequired("date-to")
+
+	monitorCmd.MarkFlagRequired("noti-price")
+	monitorCmd.MarkFlagRequired("email")
 
 	rootCmd.AddCommand(monitorCmd)
 }
@@ -69,7 +80,7 @@ func parseArguments() (types.SearchCriteria, error) {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	//TODO: run scraper (fetch, parse, publish), consumer (subscribe, process, saveDb) and notifier (readDb, notify) goroutines
+	//TODO: run scraper (fetch, parse, publish), consumer (subscribe, process, saveDb), notifier and raporter goroutines
 
 	scraperCriteria, err := parseArguments()
 
@@ -77,5 +88,5 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	scraper.RunScrapers(scraperCriteria)
+	fetcher.RunFetchers(scraperCriteria)
 }
