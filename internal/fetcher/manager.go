@@ -1,8 +1,6 @@
 package fetcher
 
 import (
-	"fmt"
-
 	"github.com/sunba23/notifly/internal/fetcher/fetchers"
 	"github.com/sunba23/notifly/internal/fetcher/types"
 )

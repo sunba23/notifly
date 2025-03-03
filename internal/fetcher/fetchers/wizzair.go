@@ -16,10 +16,9 @@ func (w *WizzairFetcher) GenerateURL(criteria types.SearchCriteria) string {
 	return ""
 }
 
-func (r *WizzairFetcher) Fetch(url string, ch chan string) string {
-  return ""
+func (r *WizzairFetcher) Fetch(url string, ch chan string){
 }
 
-func (w *WizzairFetcher) Parse(ch chan string) ([]types.Flight, error) {
+func (w *WizzairFetcher) Parse(inCh chan string, outCh chan types.Flight) ([]types.Flight, error) {
 	return nil, nil
 }

@@ -3,7 +3,7 @@ package types
 type Fetcher interface {
 	GenerateURL(criteria SearchCriteria) string
 
-	Fetch(url string, ch chan string) string
+	Fetch(url string, ch chan string)
 
-	Parse(fetchParseCh chan string, parsePublishCh chan Flight) ([]Flight, error)
+	Parse(inCh chan string, outCh chan Flight) ([]Flight, error)
 }

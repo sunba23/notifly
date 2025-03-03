@@ -16,15 +16,6 @@ type RyanairFetcher struct {
 	apiURL string
 }
 
-type RyanairAPIResponse struct {
-	Fares []struct {
-		Price struct {
-			Value float64 `json:"value"`
-		} `json:"price"`
-		DepartureDate string `json:"departureDate"`
-	} `json:"fares"`
-}
-
 func NewRyanairFetcher() types.Fetcher {
 	return &RyanairFetcher{
 		apiURL: "https://www.ryanair.com/api/farfnd/v4/roundTripFares",
@@ -34,25 +25,25 @@ func NewRyanairFetcher() types.Fetcher {
 func (r *RyanairFetcher) GenerateURL(criteria types.SearchCriteria) string {
 	params := url.Values{}
 	params.Set("departureAirportIataCode", criteria.FromAirport)
-  // earliest to go there = dateFrom
+	// earliest to go there = dateFrom
 	params.Set("outboundDepartureDateFrom", criteria.DateFrom.Format("2006-01-02"))
 	params.Set("market", "pl-pl")
 	params.Set("adultPaxCount", fmt.Sprintf("%d", criteria.Adults))
 	params.Set("arrivalAirportIataCodes", criteria.ToAirport)
-  params.Set("searchMode", "ALL")
-  // latest to go there = dateTo - minimum days spent
-	params.Set("outboundDepartureDateTo", criteria.DateTo.AddDate(0,0, -1 * criteria.MinDays).Format("2006-01-02"))
-  // earliest to go back = dateFrom + min days spent
+	params.Set("searchMode", "ALL")
+	// latest to go there = dateTo - minimum days spent
+	params.Set("outboundDepartureDateTo", criteria.DateTo.AddDate(0, 0, -1*criteria.MinDays).Format("2006-01-02"))
+	// earliest to go back = dateFrom + min days spent
 	params.Set("inboundDepartureDateFrom", criteria.DateFrom.AddDate(0, 0, 1).Format("2006-01-02"))
-  // latest to go back = dateTo
+	// latest to go back = dateTo
 	params.Set("inboundDepartureDateTo", criteria.DateTo.Format("2006-01-02"))
-  params.Set("durationFrom", strconv.Itoa(criteria.MinDays))
-  params.Set("durationTo", strconv.Itoa(criteria.MaxDays))
-  params.Set("outboundDepartureDaysOfWeek", "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY")
-  params.Set("outboundDepartureTimeFrom", "00:00")
-  params.Set("outboundDepartureTimeTo", "23:59")
-  params.Set("inboundDepartureTimeFrom", "00:00")
-  params.Set("inboundDepartureTimeTo", "23:59")
+	params.Set("durationFrom", strconv.Itoa(criteria.MinDays))
+	params.Set("durationTo", strconv.Itoa(criteria.MaxDays))
+	params.Set("outboundDepartureDaysOfWeek", "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY")
+	params.Set("outboundDepartureTimeFrom", "00:00")
+	params.Set("outboundDepartureTimeTo", "23:59")
+	params.Set("inboundDepartureTimeFrom", "00:00")
+	params.Set("inboundDepartureTimeTo", "23:59")
 
 	return fmt.Sprintf("%s?%s", r.apiURL, params.Encode())
 }
@@ -70,26 +61,43 @@ func (r *RyanairFetcher) Fetch(url string, ch chan string) {
 		fmt.Printf("Error reading response body: %v\n", err)
 		return
 	}
-  ch <- string(body)
+	ch <- string(body)
 }
 
-func (r *RyanairFetcher) Parse(ch chan string) ([]types.Flight, error) {
-	var response RyanairAPIResponse
-	if err := json.Unmarshal([]byte(<-ch), &response); err != nil {
+func (r *RyanairFetcher) Parse(inCh chan string, outCh chan types.Flight) ([]types.Flight, error) {
+	var response types.RyanairAPIResponse
+	if err := json.Unmarshal([]byte(<-inCh), &response); err != nil {
 		return nil, err
 	}
 
-	var flights []types.Flight
+	if response.Size == 0 {
+    return nil, fmt.Errorf("no flights were found!")
+	}
+
+	var results []types.Flight
 	for _, fare := range response.Fares {
-		departureTime, _ := time.Parse(time.RFC3339, fare.DepartureDate)
-		flights = append(flights, types.Flight{
-			Vendor:        "Ryanair",
-			FromAirport:   criteria.FromAirport,
-			ToAirport:     criteria.ToAirport,
-			Price:         fare.Price.Value,
-			DepartureTime: departureTime,
-			URL:           "https://www.ryanair.com/",
+		thereDT, err := time.Parse("2025-03-11T06:00:00", fare.Outbound.DepartureDate)
+		if err != nil {
+			fmt.Errorf("failed to parse %v", thereDT)
+		}
+
+		var backDT *time.Time
+		if fare.Inbound != nil {
+			parsedBackDT, err := time.Parse("2025-03-11T06:00:00", fare.Inbound.DepartureDate)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse inbound departure date: %v", err)
+			}
+			backDT = &parsedBackDT
+		}
+
+		results = append(results, types.Flight{
+			Vendor:             "Ryanair",
+			FromIata:           fare.Outbound.DepartureAirport.IataCode,
+			ThereDepartureTime: thereDT,
+			ToIata:             fare.Outbound.ArrivalAirport.IataCode,
+			BackDepartureTime:  backDT,
+			Price:              fare.Summary.Price.Value,
 		})
 	}
-	return flights, nil
+	return results, nil
 }
