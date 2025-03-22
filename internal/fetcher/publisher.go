@@ -1,3 +1,4 @@
 package fetcher
 
-type publisher struct{}
+type publisher struct{
+}

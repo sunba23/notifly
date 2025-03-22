@@ -48,56 +48,52 @@ func (r *RyanairFetcher) GenerateURL(criteria types.SearchCriteria) string {
 	return fmt.Sprintf("%s?%s", r.apiURL, params.Encode())
 }
 
-func (r *RyanairFetcher) Fetch(url string, ch chan string) {
+func (r *RyanairFetcher) Fetch(url string, outCh chan string, errCh chan error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("Error fetching %s: %v\n", url, err)
-		return
+		errCh <- fmt.Errorf("Error fetching %s: %v\n", url, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("Error reading response body: %v\n", err)
-		return
+		errCh <- fmt.Errorf("Error reading response body: %v\n", err)
 	}
-	ch <- string(body)
+	outCh <- string(body)
 }
 
-func (r *RyanairFetcher) Parse(inCh chan string, outCh chan types.Flight) ([]types.Flight, error) {
+func (r *RyanairFetcher) Parse(data string, outCh chan types.Flight, errCh chan error) {
 	var response types.RyanairAPIResponse
-	if err := json.Unmarshal([]byte(<-inCh), &response); err != nil {
-		return nil, err
+	if err := json.Unmarshal([]byte(data), &response); err != nil {
+		errCh <- err
 	}
 
 	if response.Size == 0 {
-    return nil, fmt.Errorf("no flights were found!")
+		errCh <- fmt.Errorf("no flights were found!")
 	}
 
-	var results []types.Flight
 	for _, fare := range response.Fares {
-		thereDT, err := time.Parse("2025-03-11T06:00:00", fare.Outbound.DepartureDate)
+		thereDT, err := time.Parse("2006-01-02T15:04:05", fare.Outbound.DepartureDate)
 		if err != nil {
-			fmt.Errorf("failed to parse %v", thereDT)
+			errCh <- fmt.Errorf("failed to parse outbound departure date %v \n", thereDT)
 		}
 
 		var backDT *time.Time
 		if fare.Inbound != nil {
-			parsedBackDT, err := time.Parse("2025-03-11T06:00:00", fare.Inbound.DepartureDate)
+			parsedBackDT, err := time.Parse("2006-01-02T15:04:05", fare.Inbound.DepartureDate)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse inbound departure date: %v", err)
+				errCh <- fmt.Errorf("failed to parse inbound departure date: %v", err)
 			}
 			backDT = &parsedBackDT
 		}
 
-		results = append(results, types.Flight{
+		outCh <- types.Flight{
 			Vendor:             "Ryanair",
 			FromIata:           fare.Outbound.DepartureAirport.IataCode,
 			ThereDepartureTime: thereDT,
 			ToIata:             fare.Outbound.ArrivalAirport.IataCode,
 			BackDepartureTime:  backDT,
 			Price:              fare.Summary.Price.Value,
-		})
+		}
 	}
-	return results, nil
 }

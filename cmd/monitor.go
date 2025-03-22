@@ -88,5 +88,5 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fetcher.RunFetchers(scraperCriteria)
+	fetcher.Run(scraperCriteria)
 }
