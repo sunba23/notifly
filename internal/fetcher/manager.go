@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunba23/notifly/internal/channels"
 	"github.com/sunba23/notifly/internal/fetcher/fetchers"
 	"github.com/sunba23/notifly/internal/fetcher/types"
 )
@@ -13,12 +14,10 @@ import (
 func Run(criteria types.SearchCriteria) {
 	fetcherSlice := []types.Fetcher{
 		fetchers.NewRyanairFetcher(),
-		fetchers.NewWizzairFetcher(),
+		//fetchers.NewWizzairFetcher(),
 	}
 
-	fetchParseCh := make(chan string, 10)
-	parsePublishCh := make(chan types.Flight, 10)
-	errCh := make(chan error, 10)
+	chans := channels.GetChannels()
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -26,6 +25,7 @@ func Run(criteria types.SearchCriteria) {
 
 	// runs web fetchers wrapped in goroutines
 	for _, f := range fetcherSlice {
+		url := f.GenerateURL(criteria)
 		wg.Add(1)
 		go func(f types.Fetcher) {
 			defer wg.Done()
@@ -34,8 +34,7 @@ func Run(criteria types.SearchCriteria) {
 				case <-ctx.Done():
 					return
 				default:
-					url := f.GenerateURL(criteria)
-					go f.Fetch(url, fetchParseCh, errCh)
+					go f.Fetch(url, chans.FetchParseCh, chans.ErrCh)
 					time.Sleep(1 * time.Minute)
 				}
 			}
@@ -48,47 +47,40 @@ func Run(criteria types.SearchCriteria) {
 		go func(f types.Fetcher) {
 			defer wg.Done()
 			// parses data, simultaneously pushing each parsed flight into next channel
-			for rawData := range fetchParseCh {
-				f.Parse(rawData, parsePublishCh, errCh)
+			for rawData := range chans.FetchParseCh {
+				f.Parse(rawData, chans.ParseWriteCh, chans.ErrCh)
 			}
 			for {
 				select {
 				case <-ctx.Done():
 					return
-				case rawData, ok := <-fetchParseCh:
+				case rawData, ok := <-chans.FetchParseCh:
 					if !ok {
 						return
 					}
-					f.Parse(rawData, parsePublishCh, errCh)
+					f.Parse(rawData, chans.ParseWriteCh, chans.ErrCh)
 				}
 			}
 		}(f)
 	}
 
 	// ONLY FOR TESTS - print out parsed flights
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var incr uint8 = 0
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case parsedFlight, ok := <-parsePublishCh:
-				if !ok {
-					return
-				}
-				fmt.Printf("parsed flight %v: %v\n", incr, parsedFlight)
-				incr++
-			}
-		}
-	}()
-
-	// run publishing goroutine
 	// wg.Add(1)
-	// go func (){
-	//   for flight := range parsePublishCh {
-	//   }
+	// go func() {
+	// 	defer wg.Done()
+	// 	var incr uint8 = 0
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return
+	// 		case parsedFlight, ok := <-parseWriteCh:
+	// 			if !ok {
+	// 				return
+	// 			}
+	// 			fmt.Printf("parsed flight %v: %v\n", incr, parsedFlight)
+	// 			incr++
+	// 		}
+	// 	}
 	// }()
 
 	// runs errors goroutine
@@ -99,7 +91,7 @@ func Run(criteria types.SearchCriteria) {
 			select {
 			case <-ctx.Done():
 				return
-			case err, ok := <-errCh:
+			case err, ok := <-chans.ErrCh:
 				if !ok {
 					return
 				}
@@ -110,7 +102,5 @@ func Run(criteria types.SearchCriteria) {
 
 	wg.Wait()
 
-	close(fetchParseCh)
-	close(parsePublishCh)
-	close(errCh)
+  chans.Close()
 }

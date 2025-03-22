@@ -80,13 +80,13 @@ func parseArguments() (types.SearchCriteria, error) {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	//TODO: run scraper (fetch, parse, publish), consumer (subscribe, process, saveDb), notifier and raporter goroutines
+	//TODO: run fetcher (fetch, parse), writer (save to disk), notifier goroutines
 
-	scraperCriteria, err := parseArguments()
+	searchCriteria, err := parseArguments()
 
 	if err != nil {
 		return
 	}
 
-	fetcher.Run(scraperCriteria)
+	fetcher.Run(searchCriteria)
 }
