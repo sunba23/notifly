@@ -11,6 +11,7 @@ type SearchCriteria struct {
 	MaxDays     int
 	Adults      int
 	IsReturn    bool
+	NotiPrice   float64
 }
 
 type Flight struct {
@@ -42,7 +43,7 @@ type RFlight struct {
 	FlightKey        string   `json:"flightKey"`
 	FlightNumber     string   `json:"flightNumber"`
 	PreviousPrice    *RPrice  `json:"previousPrice"`
-	PriceUpdated     float64    `json:"priceUpdated"`
+	PriceUpdated     float64  `json:"priceUpdated"`
 }
 
 type RAirport struct {
@@ -61,11 +62,11 @@ type RCity struct {
 }
 
 type RPrice struct {
-	Value               float64    `json:"value"`
-	ValueMainUnit       string `json:"valueMainUnit"`
-	ValueFractionalUnit string `json:"valueFractionalUnit"`
-	CurrencyCode        string `json:"currencyCode"`
-	CurrencySymbol      string `json:"currencySymbol"`
+	Value               float64 `json:"value"`
+	ValueMainUnit       string  `json:"valueMainUnit"`
+	ValueFractionalUnit string  `json:"valueFractionalUnit"`
+	CurrencyCode        string  `json:"currencyCode"`
+	CurrencySymbol      string  `json:"currencySymbol"`
 }
 
 type RSummary struct {

@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 	"time"
+  "os"
 
 	"github.com/spf13/cobra"
 	"github.com/sunba23/notifly/internal/fetcher"
 	"github.com/sunba23/notifly/internal/fetcher/types"
-	// "github.com/sunba23/notifly/internal/consumer"
-	// "github.com/sunba23/notifly/internal/notifier"
+	"github.com/sunba23/notifly/internal/writer"
 )
 
 var (
@@ -18,8 +18,8 @@ var (
 	dateTo      string
 	isReturn    bool
 	adults      int
-	email        string
-	notifyPrice int
+	email       string
+	notifyPrice float64
 	minDays     int
 	maxDays     int
 )
@@ -41,7 +41,7 @@ func init() {
 	monitorCmd.Flags().IntVar(&minDays, "min-days", 2, "Min. amount of days")
 	monitorCmd.Flags().IntVar(&maxDays, "max-days", 7, "Max. amount of days")
 
-	monitorCmd.Flags().IntVar(&notifyPrice, "noti-price", 0, "Price, below which you will get notified")
+	monitorCmd.Flags().Float64Var(&notifyPrice, "noti-price", 0, "Price, below which you will get notified")
 	monitorCmd.Flags().StringVar(&email, "email", "", "email to send notifications to")
 
 	monitorCmd.MarkFlagRequired("from")
@@ -74,13 +74,14 @@ func parseArguments() (types.SearchCriteria, error) {
 		DateTo:      dateToParsed,
 		IsReturn:    isReturn,
 		Adults:      adults,
+		NotiPrice:   notifyPrice,
 	}
 
 	return config, nil
 }
 
 func run(cmd *cobra.Command, args []string) {
-	//TODO: run fetcher (fetch, parse), writer (save to disk), notifier goroutines
+	//TODO: run disk writer, notifier
 
 	searchCriteria, err := parseArguments()
 
@@ -89,4 +90,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	fetcher.Run(searchCriteria)
+
+  writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10 }
+  writer.Run()
 }
