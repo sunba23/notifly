@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"sync"
 	"time"
-  "os"
 
 	"github.com/spf13/cobra"
+	"github.com/sunba23/notifly/internal/channels"
 	"github.com/sunba23/notifly/internal/fetcher"
 	"github.com/sunba23/notifly/internal/fetcher/types"
 	"github.com/sunba23/notifly/internal/writer"
@@ -81,16 +82,23 @@ func parseArguments() (types.SearchCriteria, error) {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	//TODO: run disk writer, notifier
-
 	searchCriteria, err := parseArguments()
 
 	if err != nil {
 		return
 	}
 
+  var wg sync.WaitGroup
+	chans := channels.GetChannels()
+
+  fmt.Printf("running fetcher!")
+  fetcher := fetcher.Fetcher{ Wg: &wg}
 	fetcher.Run(searchCriteria)
 
-  writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10 }
+  fmt.Printf("running disk writer!")
+  writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10, Wg: &wg}
   writer.Run()
+
+  chans.Close()
+  wg.Wait()
 }

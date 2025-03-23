@@ -19,6 +19,7 @@ type Writer struct {
 	Timeout        time.Duration
 	searchCriteria types.SearchCriteria
 	chans          channels.Channels
+	Wg             *sync.WaitGroup
 }
 
 func (w *Writer) check(err error) {
@@ -58,15 +59,14 @@ func (w *Writer) saveToFile(flights []types.Flight) {
 
 func (w *Writer) Run() {
 	chans := channels.GetChannels()
-	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	w.GenerateFilepath()
 
-	wg.Add(1)
+	w.Wg.Add(1)
 	go func(w *Writer) {
-		defer wg.Done()
+		defer w.Wg.Done()
 
 		var flights []types.Flight
 		ticker := time.NewTicker(w.Timeout)
@@ -87,11 +87,13 @@ func (w *Writer) Run() {
 					return
 				}
 
+				fmt.Printf("parsed flight! %v", flight)
 				w.checkNoti(flight)
 				flights = append(flights, flight)
 
 				if len(flights) >= w.BatchSize {
 					// save when batch reached
+					fmt.Printf("saving to file...")
 					w.saveToFile(flights)
 					flights = nil
 					ticker.Reset(w.Timeout)

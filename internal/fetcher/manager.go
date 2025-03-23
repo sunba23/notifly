@@ -11,7 +11,11 @@ import (
 	"github.com/sunba23/notifly/internal/fetcher/types"
 )
 
-func Run(criteria types.SearchCriteria) {
+type Fetcher struct {
+	Wg *sync.WaitGroup
+}
+
+func (fet *Fetcher) Run(criteria types.SearchCriteria) {
 	fetcherSlice := []types.Fetcher{
 		fetchers.NewRyanairFetcher(),
 		//fetchers.NewWizzairFetcher(),
@@ -19,16 +23,15 @@ func Run(criteria types.SearchCriteria) {
 
 	chans := channels.GetChannels()
 
-	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// runs web fetchers wrapped in goroutines
 	for _, f := range fetcherSlice {
 		url := f.GenerateURL(criteria)
-		wg.Add(1)
+		fet.Wg.Add(1)
 		go func(f types.Fetcher) {
-			defer wg.Done()
+			defer fet.Wg.Done()
 			for {
 				select {
 				case <-ctx.Done():
@@ -43,9 +46,9 @@ func Run(criteria types.SearchCriteria) {
 
 	// runs parsers wrapped in goroutines
 	for _, f := range fetcherSlice {
-		wg.Add(1)
+		fet.Wg.Add(1)
 		go func(f types.Fetcher) {
-			defer wg.Done()
+			defer fet.Wg.Done()
 			// parses data, simultaneously pushing each parsed flight into next channel
 			for rawData := range chans.FetchParseCh {
 				f.Parse(rawData, chans.ParseWriteCh, chans.ErrCh)
@@ -84,9 +87,9 @@ func Run(criteria types.SearchCriteria) {
 	// }()
 
 	// runs errors goroutine
-	wg.Add(1)
+	fet.Wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer fet.Wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -99,8 +102,4 @@ func Run(criteria types.SearchCriteria) {
 			}
 		}
 	}()
-
-	wg.Wait()
-
-  chans.Close()
 }
