@@ -18,13 +18,13 @@ type Writer struct {
 	BatchSize      int
 	Timeout        time.Duration
 	searchCriteria types.SearchCriteria
-	chans          channels.Channels
+	Chans          *channels.Channels
 	Wg             *sync.WaitGroup
 }
 
 func (w *Writer) check(err error) {
 	if err != nil {
-		w.chans.ErrCh <- fmt.Errorf("writer error: %v", err)
+		w.Chans.ErrCh <- fmt.Errorf("writer error: %v", err)
 	}
 }
 
@@ -57,11 +57,7 @@ func (w *Writer) saveToFile(flights []types.Flight) {
 	w.check(err)
 }
 
-func (w *Writer) Run() {
-	chans := channels.GetChannels()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func (w *Writer) Run(ctx context.Context) {
 	w.GenerateFilepath()
 
 	w.Wg.Add(1)
@@ -79,7 +75,7 @@ func (w *Writer) Run() {
 					w.saveToFile(flights)
 				}
 				return
-			case flight, ok := <-chans.ParseWriteCh:
+			case flight, ok := <-w.Chans.ParseWriteCh:
 				if !ok {
 					if len(flights) > 0 {
 						w.saveToFile(flights)
@@ -87,13 +83,13 @@ func (w *Writer) Run() {
 					return
 				}
 
-				fmt.Printf("parsed flight! %v", flight)
+				fmt.Printf("parsed flight! %v\n", flight)
 				w.checkNoti(flight)
 				flights = append(flights, flight)
 
 				if len(flights) >= w.BatchSize {
 					// save when batch reached
-					fmt.Printf("saving to file...")
+					fmt.Println("saving whole batch to file...")
 					w.saveToFile(flights)
 					flights = nil
 					ticker.Reset(w.Timeout)
@@ -102,6 +98,7 @@ func (w *Writer) Run() {
 			case <-ticker.C:
 				if len(flights) > 0 {
 					// save when timeout reached
+					fmt.Println("timeout! saving what I have to file...")
 					w.saveToFile(flights)
 					flights = nil
 				}

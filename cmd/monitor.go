@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -88,17 +89,20 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
   var wg sync.WaitGroup
 	chans := channels.GetChannels()
 
-  fmt.Printf("running fetcher!")
-  fetcher := fetcher.Fetcher{ Wg: &wg}
-	fetcher.Run(searchCriteria)
+  fmt.Println("running fetcher!")
+  fetcher := fetcher.Fetcher{ Wg: &wg, Chans: chans}
+	fetcher.Run(ctx, searchCriteria)
 
-  fmt.Printf("running disk writer!")
-  writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10, Wg: &wg}
-  writer.Run()
+  fmt.Println("running disk writer!")
+  writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10, Wg: &wg, Chans: chans}
+  writer.Run(ctx)
 
-  chans.Close()
   wg.Wait()
+  chans.Close()
 }
