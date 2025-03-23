@@ -17,7 +17,7 @@ type Writer struct {
 	Filepath       string
 	BatchSize      int
 	Timeout        time.Duration
-	searchCriteria types.SearchCriteria
+	SearchCriteria types.SearchCriteria
 	Chans          *channels.Channels
 	Wg             *sync.WaitGroup
 }
@@ -29,7 +29,7 @@ func (w *Writer) check(err error) {
 }
 
 func (w *Writer) GenerateFilepath() {
-	bytes, err := json.Marshal(w.searchCriteria)
+	bytes, err := json.Marshal(w.SearchCriteria)
 	w.check(err)
 
 	basedir, err := os.UserHomeDir()
@@ -41,9 +41,9 @@ func (w *Writer) GenerateFilepath() {
 }
 
 func (w *Writer) checkNoti(flight types.Flight) {
-	if flight.Price < w.searchCriteria.NotiPrice {
+	if flight.Price < w.SearchCriteria.NotiPrice {
 		// TODO run notifier here
-		fmt.Printf("found flight with matching criteria: %v", flight)
+		fmt.Printf("Found flight with matching criteria: %v\n", flight)
 	}
 }
 
@@ -83,13 +83,11 @@ func (w *Writer) Run(ctx context.Context) {
 					return
 				}
 
-				fmt.Printf("parsed flight! %v\n", flight)
 				w.checkNoti(flight)
 				flights = append(flights, flight)
 
 				if len(flights) >= w.BatchSize {
 					// save when batch reached
-					fmt.Println("saving whole batch to file...")
 					w.saveToFile(flights)
 					flights = nil
 					ticker.Reset(w.Timeout)
@@ -98,7 +96,6 @@ func (w *Writer) Run(ctx context.Context) {
 			case <-ticker.C:
 				if len(flights) > 0 {
 					// save when timeout reached
-					fmt.Println("timeout! saving what I have to file...")
 					w.saveToFile(flights)
 					flights = nil
 				}

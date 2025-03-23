@@ -12,8 +12,8 @@ import (
 )
 
 type Fetcher struct {
-	Wg *sync.WaitGroup
-  Chans *channels.Channels
+	Wg    *sync.WaitGroup
+	Chans *channels.Channels
 }
 
 func (fet *Fetcher) Run(ctx context.Context, criteria types.SearchCriteria) {
@@ -25,18 +25,14 @@ func (fet *Fetcher) Run(ctx context.Context, criteria types.SearchCriteria) {
 	// runs web fetchers wrapped in goroutines
 	for _, f := range fetcherSlice {
 		url := f.GenerateURL(criteria)
-    fmt.Println("generated url")
 		fet.Wg.Add(1)
-    fmt.Println("added to wg")
 		go func(f types.Fetcher) {
 			defer fet.Wg.Done()
 			for {
 				select {
 				case <-ctx.Done():
-          fmt.Println("ctx done")
 					return
 				default:
-          fmt.Println("fetching flight data")
 					go f.Fetch(url, &fet.Chans.FetchParseCh, &fet.Chans.ErrCh)
 					time.Sleep(1 * time.Minute)
 				}
@@ -66,25 +62,6 @@ func (fet *Fetcher) Run(ctx context.Context, criteria types.SearchCriteria) {
 			}
 		}(f)
 	}
-
-	// ONLY FOR TESTS - print out parsed flights
-	// wg.Add(1)
-	// go func() {
-	// 	defer wg.Done()
-	// 	var incr uint8 = 0
-	// 	for {
-	// 		select {
-	// 		case <-ctx.Done():
-	// 			return
-	// 		case parsedFlight, ok := <-parseWriteCh:
-	// 			if !ok {
-	// 				return
-	// 			}
-	// 			fmt.Printf("parsed flight %v: %v\n", incr, parsedFlight)
-	// 			incr++
-	// 		}
-	// 	}
-	// }()
 
 	// runs errors goroutine
 	fet.Wg.Add(1)

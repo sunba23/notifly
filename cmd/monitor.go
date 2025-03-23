@@ -92,17 +92,15 @@ func run(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-  var wg sync.WaitGroup
+	var wg sync.WaitGroup
 	chans := channels.GetChannels()
 
-  fmt.Println("running fetcher!")
-  fetcher := fetcher.Fetcher{ Wg: &wg, Chans: chans}
+	fetcher := fetcher.Fetcher{Wg: &wg, Chans: chans}
 	fetcher.Run(ctx, searchCriteria)
 
-  fmt.Println("running disk writer!")
-  writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10, Wg: &wg, Chans: chans}
-  writer.Run(ctx)
+	writer := writer.Writer{Timeout: 10 * time.Second, BatchSize: 10, Wg: &wg, Chans: chans, SearchCriteria: searchCriteria}
+	writer.Run(ctx)
 
-  wg.Wait()
-  chans.Close()
+	wg.Wait()
+	chans.Close()
 }
