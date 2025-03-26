@@ -52,7 +52,6 @@ func init() {
 	monitorCmd.MarkFlagRequired("date-to")
 
 	monitorCmd.MarkFlagRequired("noti-price")
-	monitorCmd.MarkFlagRequired("email")
 
 	rootCmd.AddCommand(monitorCmd)
 }
